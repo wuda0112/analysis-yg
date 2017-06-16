@@ -65,7 +65,7 @@ public class YgTokenizer extends Tokenizer {
 	public boolean incrementToken() throws IOException {
 		if (textHandler.incrementToken()) {// 文本处理器表示有token返回
 			clearAttributes();
-			charTermAttr.append(textHandlerSharedAttribute.getCharTermString());
+			charTermAttr.append(textHandlerSharedAttribute.getTokenString());
 			offsetAttr.setOffset(textHandlerSharedAttribute.getStartOffset(),
 					textHandlerSharedAttribute.getEndOffset());
 			typeAttr.setType(textHandlerSharedAttribute.getType());

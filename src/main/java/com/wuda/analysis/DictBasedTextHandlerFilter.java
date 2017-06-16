@@ -57,7 +57,7 @@ public class DictBasedTextHandlerFilter extends TextHandlerFilter {
 		}
 		if (input.incrementToken()) {
 			baseCoord = attribute.getStartOffset();
-			tokens = segmenter.getTokens(attribute.getCharTermString());// 此时的charTerm中保存的是句子,获取分词
+			tokens = segmenter.getTokens(attribute.getTokenString());// 此时的token中保存的是句子,获取分词
 			if (tokens == null || tokens.isEmpty()) {
 				return false;
 			}

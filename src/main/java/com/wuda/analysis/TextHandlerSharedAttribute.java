@@ -65,20 +65,20 @@ public class TextHandlerSharedAttribute {
 	}
 
 	/**
-	 * term的长度.
+	 * token的长度.
 	 * 
 	 * @return 长度
 	 */
-	public int getCharTermLength() {
+	public int getTokenLength() {
 		return token.length();
 	}
 
 	/**
-	 * 获取char term.
+	 * 获取token.
 	 * 
 	 * @return string
 	 */
-	public String getCharTermString() {
+	public String getTokenString() {
 		return token.toString();
 	}
 

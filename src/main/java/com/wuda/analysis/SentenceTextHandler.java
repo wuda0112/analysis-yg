@@ -43,7 +43,7 @@ public class SentenceTextHandler extends TextHandler {
 		while ((ch = input.read()) != -1) {
 			currentIndex++;
 			if (isSentencePunctuation(ch)) {// 是句子标点
-				if (attribute.getCharTermLength() > 0) {
+				if (attribute.getTokenLength() > 0) {
 					break;
 				} else {
 					continue;
@@ -51,10 +51,10 @@ public class SentenceTextHandler extends TextHandler {
 			}
 			attribute.tokenAppend((char) ch);
 		}
-		if (attribute.getCharTermLength() > 0) {
+		if (attribute.getTokenLength() > 0) {
 			attribute.setType("sentence");
 			attribute.setStartOffset(startOffset);
-			attribute.setEndOffset(startOffset + attribute.getCharTermLength() + 1);// endOffset不一定等于currentIndex,因为如果是标点符号时,标点符号是不包含的
+			attribute.setEndOffset(startOffset + attribute.getTokenLength() + 1);// endOffset不一定等于currentIndex,因为如果是标点符号时,标点符号是不包含的
 			startOffset = currentIndex;
 			return true;
 		} else {
