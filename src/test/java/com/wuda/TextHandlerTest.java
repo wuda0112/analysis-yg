@@ -41,7 +41,7 @@ public class TextHandlerTest {
 				 */
 				// Thread.sleep(3000);
 				while (topFilter.incrementToken()) {
-					System.out.println(attribute.getCharTermString() + "\tstartOffset:" + attribute.getStartOffset()
+					System.out.println(attribute.getTokenString() + "\tstartOffset:" + attribute.getStartOffset()
 							+ "\tendOffset:" + attribute.getEndOffset() + "\ttype:" + attribute.getType());
 
 				}
