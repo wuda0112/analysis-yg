@@ -19,6 +19,7 @@
 
 package org.elasticsearch.plugin.analysis.yg;
 
+import org.elasticsearch.Constant;
 import org.elasticsearch.common.inject.Module;
 import org.elasticsearch.index.analysis.AnalysisModule;
 import org.elasticsearch.index.analysis.YgAnalysisBinderProcessor;
@@ -33,22 +34,22 @@ import java.util.Collections;
  */
 public class AnalysisYgPlugin extends Plugin {
 
-    @Override
-    public String name() {
-        return "analysis-yg";
-    }
+	@Override
+	public String name() {
+		return Constant.plugin_name;
+	}
 
-    @Override
-    public String description() {
-        return "Chinese analysis support";
-    }
+	@Override
+	public String description() {
+		return Constant.plugin_description;
+	}
 
-    @Override
-    public Collection<Module> nodeModules() {
-        return Collections.<Module>singletonList(new YgIndicesAnalysisModule());
-    }
+	@Override
+	public Collection<Module> nodeModules() {
+		return Collections.<Module>singletonList(new YgIndicesAnalysisModule());
+	}
 
-    public void onModule(AnalysisModule module) {
-        module.addProcessor(new YgAnalysisBinderProcessor());
-    }
+	public void onModule(AnalysisModule module) {
+		module.addProcessor(new YgAnalysisBinderProcessor());
+	}
 }

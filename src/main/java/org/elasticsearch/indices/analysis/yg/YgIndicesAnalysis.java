@@ -20,6 +20,7 @@
 package org.elasticsearch.indices.analysis.yg;
 
 import org.apache.lucene.analysis.Tokenizer;
+import org.elasticsearch.Constant;
 import org.elasticsearch.YgUtil;
 import org.elasticsearch.common.component.AbstractComponent;
 import org.elasticsearch.common.inject.Inject;
@@ -37,16 +38,17 @@ public class YgIndicesAnalysis extends AbstractComponent {
 	public YgIndicesAnalysis(Settings settings, IndicesAnalysisService indicesAnalysisService) {
 		super(settings);
 
-		// Register yg analyzer
-		indicesAnalysisService.analyzerProviderFactories().put("yg",
-				new PreBuiltAnalyzerProviderFactory("yg", AnalyzerScope.INDICES, YgUtil.getYgAnalyzer(settings)));
+		// Register smartcn analyzer
+		indicesAnalysisService.analyzerProviderFactories().put(Constant.analyzer_provider_name,
+				new PreBuiltAnalyzerProviderFactory(Constant.analyzer_provider_name, AnalyzerScope.INDICES,
+						YgUtil.getYgAnalyzer(settings)));
 
-		// Register yg_tokenizer tokenizer
-		indicesAnalysisService.tokenizerFactories().put("yg_tokenizer",
+		// Register smartcn_tokenizer tokenizer
+		indicesAnalysisService.tokenizerFactories().put(Constant.tokenizer_name,
 				new PreBuiltTokenizerFactoryFactory(new TokenizerFactory() {
 					@Override
 					public String name() {
-						return "yg_tokenizer";
+						return Constant.tokenizer_name;
 					}
 
 					@Override

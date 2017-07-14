@@ -19,17 +19,21 @@
 
 package org.elasticsearch.index.analysis;
 
+import org.elasticsearch.Constant;
+
 /**
  */
 public class YgAnalysisBinderProcessor extends AnalysisModule.AnalysisBinderProcessor {
 
-	@Override
-	public void processAnalyzers(AnalyzersBindings analyzersBindings) {
-		analyzersBindings.processAnalyzer("yg", YgAnalyzerProvider.class);
-	}
+    @Override
+    public void processAnalyzers(AnalyzersBindings analyzersBindings) {
+        analyzersBindings.processAnalyzer(Constant.analyzer_provider_name, YgAnalyzerProvider.class);
+    }
 
-	@Override
-	public void processTokenizers(TokenizersBindings tokenizersBindings) {
-		tokenizersBindings.processTokenizer("yg_tokenizer", YgTokenizerTokenizerFactory.class);
-	}
+    @Override
+    public void processTokenizers(TokenizersBindings tokenizersBindings) {
+        tokenizersBindings.processTokenizer(Constant.tokenizer_name, YgTokenizerTokenizerFactory.class);
+        // This is an alias to "smartcn_tokenizer"; it's here for backwards compat
+        tokenizersBindings.processTokenizer(Constant.tokenizer_name, YgTokenizerTokenizerFactory.class);
+    }
 }

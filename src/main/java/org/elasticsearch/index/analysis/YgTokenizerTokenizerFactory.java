@@ -28,18 +28,14 @@ import org.elasticsearch.index.Index;
 import org.elasticsearch.index.settings.IndexSettingsService;
 
 public class YgTokenizerTokenizerFactory extends AbstractTokenizerFactory {
-	
-	private Settings settings=null;
 
-	@Inject
-	public YgTokenizerTokenizerFactory(Index index, IndexSettingsService indexSettingsService, @Assisted String name,
-			@Assisted Settings settings) {
-		super(index, indexSettingsService.getSettings(), name, settings);
-		this.settings=settings;
-	}
+    @Inject
+    public YgTokenizerTokenizerFactory(Index index, IndexSettingsService indexSettingsService, @Assisted String name, @Assisted Settings settings) {
+        super(index, indexSettingsService.getSettings(), name, settings);
+    }
 
-	@Override
-	public Tokenizer create() {
-		return YgUtil.getYgTokenizer(settings);
-	}
+    @Override
+    public Tokenizer create() {
+    	return YgUtil.getYgTokenizer(super.indexSettings());
+    }
 }
