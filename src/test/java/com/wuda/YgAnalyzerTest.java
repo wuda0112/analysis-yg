@@ -5,8 +5,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.YgAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.simpletext.SimpleTextCodec;
 import org.apache.lucene.document.Document;
@@ -29,6 +32,8 @@ import org.apache.lucene.search.similarities.ClassicSimilarity;
 import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.NIOFSDirectory;
+
+import com.wuda.analysis.FileDictionaryHandler;
 
 @SuppressWarnings("unused")
 public class YgAnalyzerTest {
@@ -97,15 +102,37 @@ public class YgAnalyzerTest {
 		}
 	}
 
+	public void showToken(YgAnalyzer analyzer, String input) {
+		TokenStream stream = analyzer.tokenStream(null, input);
+		CharTermAttribute charTermAttr = stream.addAttribute(CharTermAttribute.class);
+		TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
+
+		try {
+			stream.reset();
+			while (stream.incrementToken()) {
+				System.out.println("token:" + charTermAttr.toString() + "\ttype:" + typeAttr.type());
+			}
+			stream.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
 	public static void main(String[] args) {
 		YgAnalyzerTest test = new YgAnalyzerTest();
 		try {
-			YgAnalyzer analyzer = new YgAnalyzer(test.dictDir);// 使用yg分词
-			analyzer.setAsynLoadDict(false);// 同步加载词典
+			YgAnalyzer analyzer = new YgAnalyzer();// 使用yg分词
+			analyzer.setEnumerateAll(false);
+			FileDictionaryHandler handler = new FileDictionaryHandler();
+			handler.setDirectory("e:/dict");
+			handler.setIsAsynLoadDict(false);
+			handler.loadAll(); // 从词典目录加载词典,同步加载词典
 			// Analyzer analyzer=new StandardAnalyzer();
-			test.index(analyzer);
-			test.search();
-		} catch (IOException e) {
+			// test.index(analyzer);
+			// test.search();
+			test.showToken(analyzer, "矿泉水500ml");
+		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}

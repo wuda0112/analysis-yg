@@ -5,7 +5,7 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * 基于词典的分词.
+ * 基于词典的分词.不是单词的文本也会被返回,并且这些文本的{@link TextHandlerSharedAttribute#isWord()}等于<code>false</code>.
  * 
  * @author wuda
  *
@@ -16,15 +16,11 @@ public class DictBasedTextHandlerFilter extends TextHandlerFilter {
 	 * 分词器.
 	 */
 	private YgSegmenter segmenter;
-	/**
-	 * 字典处理类.
-	 */
-	private FileDictionaryHandler dictionaryHandler = null;
 
 	/**
-	 * 词典所在的目录.
+	 * 是否枚举所有的单词.
 	 */
-	private String dictDir = null;
+	private boolean enumerateAll = true;
 
 	/**
 	 * 所有的token(单词).
@@ -47,9 +43,12 @@ public class DictBasedTextHandlerFilter extends TextHandlerFilter {
 	 */
 	@Override
 	public boolean incrementToken() throws IOException {
-		if (this.dictDir == null) {
-			throw new NoDictException(
-					"此handler是基于词典的,所以请先调用loadDictFrom(String dictDir, boolean isAsynLoadDict)方法加载词典");
+		if (segmenter == null) {
+			segmenter = new YgSegmenter();
+			FileDictionaryHandler dictionaryHandler = new FileDictionaryHandler();
+			Trie dictionary = dictionaryHandler.getDictionary();// 获取词典,词典是多线程异步加载的,不会阻塞
+			segmenter.setDictionary(dictionary);
+			segmenter.setEnumerateAll(enumerateAll);
 		}
 		if (iterator != null && iterator.hasNext()) {
 			fillSharedAttr();
@@ -69,41 +68,16 @@ public class DictBasedTextHandlerFilter extends TextHandlerFilter {
 	}
 
 	/**
-	 * 加载词典
-	 * 
-	 * @param dictDir
-	 *            词典所在目录
-	 */
-	public void loadDictFrom(String dictDir, boolean isAsynLoadDict) {
-		if (dictDir == null) {
-			throw new NoDictException("没有词典目录.既然是基于词典的分词,请设置正确的词典目录.");
-		}
-		this.dictDir = dictDir;
-		segmenter = new YgSegmenter();
-		dictionaryHandler = new FileDictionaryHandler();
-		dictionaryHandler.setDirectory(dictDir);
-		dictionaryHandler.setIsAsynLoadDict(isAsynLoadDict);
-		Trie dictionary = dictionaryHandler.getDictionary();// 获取词典,词典是多线程异步加载的
-		segmenter.setDictionary(dictionary);
-	}
-
-	/**
 	 * 填充属性.
 	 */
 	private void fillSharedAttr() {
 		attribute.clearAttributes();
 		Token token = iterator.next();
 		attribute.tokenAppend(token.getValue());
-		attribute.setType(token.getTypeString());
+		attribute.setType(token.getTypes());
 		attribute.setStartOffset(baseCoord + token.getStartOffset());
 		attribute.setEndOffset(baseCoord + token.getEndOffset() + 1);
-	}
-
-	/**
-	 * @return the dictDir
-	 */
-	public String getDictDir() {
-		return dictDir;
+		attribute.setWord(token.isWord());
 	}
 
 	@Override
@@ -112,5 +86,20 @@ public class DictBasedTextHandlerFilter extends TextHandlerFilter {
 		tokens = null;
 		iterator = null;
 		baseCoord = 0;
+	}
+
+	/**
+	 * @return the enumerateAll
+	 */
+	public boolean isEnumerateAll() {
+		return enumerateAll;
+	}
+
+	/**
+	 * @param enumerateAll
+	 *            the enumerateAll to set
+	 */
+	public void setEnumerateAll(boolean enumerateAll) {
+		this.enumerateAll = enumerateAll;
 	}
 }

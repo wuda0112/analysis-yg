@@ -4,6 +4,8 @@ import org.apache.lucene.analysis.YgAnalyzer;
 import org.apache.lucene.analysis.YgTokenizer;
 import org.elasticsearch.common.settings.Settings;
 
+import com.wuda.analysis.FileDictionaryHandler;
+
 /**
  * 不是elasticsearch插件所必须的类,只是实现插件时自己定义的工具类.
  * 
@@ -51,11 +53,12 @@ public class YgUtil {
 	 */
 	public static YgAnalyzer getYgAnalyzer(Settings settings) {
 		String dictDir = getDictDir(settings);// 获取词典目录
-		YgAnalyzer analyzer = new YgAnalyzer(dictDir);
+		YgAnalyzer analyzer = new YgAnalyzer();
 		boolean isAsynLoadDict = isAsynLoadDict(settings);// 是否异步加载词典
-		analyzer.setAsynLoadDict(isAsynLoadDict);
 		if (isAsynLoadDict) {
-			analyzer.loadDictAdvance();// 提前加载词典,es启动时,此方法就会执行
+			FileDictionaryHandler handler = new FileDictionaryHandler();
+			handler.setDirectory(dictDir);
+			handler.loadAll();// 提前加载词典,es启动时,此方法就会执行
 		}
 		return analyzer;
 	}
@@ -68,9 +71,7 @@ public class YgUtil {
 	 * @return YgTokenizer实例
 	 */
 	public static YgTokenizer getYgTokenizer(Settings settings) {
-		String dictDir = getDictDir(settings);// 获取词典目录
-		boolean isAsynLoadDict = isAsynLoadDict(settings);// 是否异步加载词典
-		YgTokenizer tokenizer = new YgTokenizer(dictDir, isAsynLoadDict);
+		YgTokenizer tokenizer = new YgTokenizer();
 		return tokenizer;
 	}
 

@@ -1,7 +1,8 @@
 package com.wuda.utils.tree;
 
-import java.util.LinkedList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 基本的树型结构.<Strong>first-child next-sibling</Strong>方式的实现.树中的节点有一些限制条件
@@ -13,17 +14,15 @@ import java.util.List;
  * {@link BasicTree#getRoot()}</li>
  * </ul>
  * 
- * @param T
- *            树中节点的元素的类型
  * @author wuda
  *
  */
-public class BasicTree<T extends Comparable<T>> {
+public class BasicTree {
 
 	/**
 	 * 树的根节点.
 	 */
-	private Node<T> root = new Node<T>(null);
+	private Node root = new Node((char) -1);
 
 	/**
 	 * 创建一个新的节点.
@@ -33,11 +32,8 @@ public class BasicTree<T extends Comparable<T>> {
 	 * 
 	 * @return a new node
 	 */
-	public Node<T> createNode(T element) {
-		if (element == null) {
-			throw new NullPointerException("element 为null");
-		}
-		return new Node<T>(element);
+	public Node createNode(char element) {
+		return new Node(element);
 	}
 
 	/**
@@ -52,7 +48,7 @@ public class BasicTree<T extends Comparable<T>> {
 	 * @throws DuplicateElementException
 	 *             在给定的父节点下,已经有一个子节点的{@link Node#getElement()}和child的相同
 	 */
-	public void createRelationShip(Node<T> parent, Node<T> child)
+	public void createRelationShip(Node parent, Node child)
 			throws AlreadyHasParentException, DuplicateElementException {
 		if (parent == null) {
 			throw new NullPointerException("父节点不能为空");
@@ -66,7 +62,7 @@ public class BasicTree<T extends Comparable<T>> {
 		if (parent.firstChild == null) {
 			parent.firstChild = child;
 		} else {
-			Node<T> sibling = parent.firstChild;
+			Node sibling = parent.firstChild;
 			while (sibling != null && sibling.nextSibling != null) {
 				sibling = sibling.nextSibling;
 			}
@@ -84,13 +80,13 @@ public class BasicTree<T extends Comparable<T>> {
 	 *            子节点的元素
 	 * @return 子节点,null-如果没有找到
 	 */
-	public Node<T> find(Node<T> parent, T childElement) {
+	public Node find(Node parent, char childElement) {
 		if (parent == null) {
 			return null;
 		}
-		Node<T> child = parent.firstChild;
+		Node child = parent.firstChild;
 		while (child != null) {
-			if (child.getElement().compareTo(childElement) == 0) {// 找到
+			if (Character.compare(child.element, childElement) == 0) {// 找到
 				return child;
 			}
 			child = child.nextSibling;
@@ -99,39 +95,11 @@ public class BasicTree<T extends Comparable<T>> {
 	}
 
 	/**
-	 * 深度优先遍历.数据量多的时候不能调用.
-	 * 
-	 * @param start
-	 *            开始节点
-	 * @return 此节点的所有后裔,包括此节点,并且此节点一定是位于集合的第一个位置
-	 */
-	public List<Node<T>> dfs(Node<T> start) {
-		if (start == null) {
-			return null;
-		}
-		LinkedList<Node<T>> backtrack = new LinkedList<Node<T>>();
-		List<Node<T>> children = new LinkedList<Node<T>>();
-		backtrack.addFirst(start);
-		Node<T> current = null;
-		while (!backtrack.isEmpty()) {
-			current = backtrack.removeFirst();
-			while (current != null) {
-				if (current.nextSibling != null) {
-					backtrack.addFirst(current.nextSibling);
-				}
-				children.add(current);
-				current = current.firstChild;
-			}
-		}
-		return children;
-	}
-
-	/**
 	 * 获取树的根节点.
 	 * 
 	 * @return the root
 	 */
-	public Node<T> getRoot() {
+	public Node getRoot() {
 		return root;
 	}
 
@@ -144,24 +112,37 @@ public class BasicTree<T extends Comparable<T>> {
 	 * @author wuda
 	 *
 	 */
-	public static class Node<T extends Comparable<T>> {
+	public static class Node {
+
+		private final static AtomicInteger idGen = new AtomicInteger(-1);
+
+		private int id = 0;
+
 		/**
 		 * 当前节点的第一个子节点.
 		 */
-		private Node<T> firstChild = null;
+		private Node firstChild = null;
 		/**
 		 * 当前节点的兄弟节点.
 		 */
-		private Node<T> nextSibling = null;
+		private Node nextSibling = null;
 		/**
 		 * 当前节点的父节点.
 		 */
-		private Node<T> parent = null;
+		private Node parent = null;
 		/**
-		 * 兄弟节点之间,element是唯一的,即不能存在任意两个兄弟节点的element一样.如果节点不是兄弟关系,
-		 * 则他们的element是可以一样的.
+		 * 兄弟节点之间,element是唯一的,即不能存在任意两个兄弟节点的element一样.如果节点不是兄弟关系, 则他们的element是可以一样的.
 		 */
-		private T element = null;
+		private char element;
+
+		/**
+		 * 是否token的结尾.
+		 */
+		private boolean isTokenEnd = false;
+		/**
+		 * 如果是token的结尾,此token的所有类型.
+		 */
+		private Set<String> tokenTypes = null;
 
 		/**
 		 * 构建一个节点.
@@ -169,19 +150,15 @@ public class BasicTree<T extends Comparable<T>> {
 		 * @param element
 		 *            节点的元素.
 		 */
-		Node(T element) {
+		Node(char element) {
 			this.element = element;
-		}
-
-		@Override
-		public String toString() {
-			return element.toString();
+			id = idGen.incrementAndGet();
 		}
 
 		/**
 		 * @return the firstChild
 		 */
-		Node<T> getFirstChild() {
+		Node getFirstChild() {
 			return firstChild;
 		}
 
@@ -189,14 +166,14 @@ public class BasicTree<T extends Comparable<T>> {
 		 * @param firstChild
 		 *            the firstChild to set
 		 */
-		void setFirstChild(Node<T> firstChild) {
+		void setFirstChild(Node firstChild) {
 			this.firstChild = firstChild;
 		}
 
 		/**
 		 * @return the nextSibling
 		 */
-		Node<T> getNextSibling() {
+		Node getNextSibling() {
 			return nextSibling;
 		}
 
@@ -204,7 +181,7 @@ public class BasicTree<T extends Comparable<T>> {
 		 * @param nextSibling
 		 *            the nextSibling to set
 		 */
-		void setNextSibling(Node<T> nextSibling) {
+		void setNextSibling(Node nextSibling) {
 			this.nextSibling = nextSibling;
 		}
 
@@ -213,7 +190,7 @@ public class BasicTree<T extends Comparable<T>> {
 		 * 
 		 * @return the parent
 		 */
-		public Node<T> getParent() {
+		public Node getParent() {
 			return parent;
 		}
 
@@ -221,7 +198,7 @@ public class BasicTree<T extends Comparable<T>> {
 		 * @param parent
 		 *            the parent to set
 		 */
-		void setParent(Node<T> parent) {
+		void setParent(Node parent) {
 			this.parent = parent;
 		}
 
@@ -230,16 +207,63 @@ public class BasicTree<T extends Comparable<T>> {
 		 * 
 		 * @return the element
 		 */
-		public T getElement() {
+		public char getElement() {
 			return element;
 		}
 
 		/**
-		 * @param element
-		 *            the element to set
+		 * @return the isTokenEnd
 		 */
-		void setElement(T element) {
-			this.element = element;
+		public boolean isTokenEnd() {
+			return isTokenEnd;
+		}
+
+		/**
+		 * 设置成token end,表示此节点中的元素是token(单词)的最后一个字符.比如【工程师】这个token(单词),则【师】
+		 * 所在的节点的元素被设置成token end.
+		 */
+		public void setTokenEnd() {
+			this.isTokenEnd = true;
+		}
+
+		/**
+		 * 追加TokenType.
+		 * 
+		 * @param tokenType
+		 *            token type
+		 */
+		public void appendTokenType(String tokenType) {
+			if (tokenTypes == null) {
+				tokenTypes = new HashSet<>();
+			}
+			tokenTypes.add(tokenType);
+		}
+
+		/**
+		 * @return the tokenTypes
+		 */
+		public Set<String> getTokenTypes() {
+			return tokenTypes;
+		}
+
+		/**
+		 * 多个type之间用“,”隔开.
+		 * 
+		 * @return types
+		 */
+		public String getTypes() {
+			if (tokenTypes != null && !tokenTypes.isEmpty()) {
+				if (tokenTypes.size() == 1) {
+					return tokenTypes.iterator().next();
+				}
+				StringBuilder builder = new StringBuilder();
+				for (String type : tokenTypes) {
+					builder.append(type);
+					builder.append(",");
+				}
+				return builder.substring(0, builder.length() - 1);
+			}
+			return null;
 		}
 
 		/**
@@ -249,12 +273,19 @@ public class BasicTree<T extends Comparable<T>> {
 		 */
 		public int getDepth() {
 			int tmpDepth = 0;
-			Node<T> parent = this.parent;
+			Node parent = this.parent;
 			while (parent != null) {
 				tmpDepth++;
 				parent = parent.parent;
 			}
 			return tmpDepth;
+		}
+
+		/**
+		 * @return the id
+		 */
+		public int getId() {
+			return id;
 		}
 	}
 }

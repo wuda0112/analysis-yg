@@ -10,6 +10,7 @@ import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 
 import com.wuda.analysis.DictBasedTextHandlerFilter;
+import com.wuda.analysis.FileDictionaryHandler;
 import com.wuda.analysis.SentenceTextHandler;
 import com.wuda.analysis.TextHandlerSharedAttribute;
 
@@ -24,20 +25,23 @@ public class TextHandlerTest {
 		while (i < 2) { // 调用两次是为了测试重用功能
 			i++;
 			try {
-				String text = "java开发人员,中华人民,你好好人";// 根据你自己的词典的内容测试分词清单
+				String text = "百岁山矿泉水和农夫山泉饮用水500ml";// 根据你自己的词典的内容测试分词清单
 				Reader input = new StringReader(text);
 
 				bottomHandler.setReader(input);
 				topFilter.reset(); // 同一个handler链可以重复使用
+				topFilter.setEnumerateAll(false);
 				System.out.println("\n=============加载词典...====================\n");
 				long startTime = System.currentTimeMillis();
-				topFilter.loadDictFrom("e:/dict", false); // 从词典目录加载词典,同步加载词典
+				FileDictionaryHandler handler = new FileDictionaryHandler();
+				handler.setDirectory("e:/dict");
+				handler.setIsAsynLoadDict(false);
+				handler.loadAll(); // 从词典目录加载词典,同步加载词典
 				long end = System.currentTimeMillis();
 				System.out.println(
 						"\n===============加载词典完成,用时:" + (end - startTime) + "毫秒================================\n");
 				/**
-				 * 如果异步加载,代码执行到这里是有可能词典中还没有内容,导致不能正确分词,因此可以在这里等等,让词典加载一会儿.
-				 * 如果词典很大的话, 也可以时间设置的久点
+				 * 如果异步加载,代码执行到这里是有可能词典中还没有内容,导致不能正确分词,因此可以在这里等等,让词典加载一会儿. 如果词典很大的话, 也可以时间设置的久点
 				 */
 				// Thread.sleep(3000);
 				while (topFilter.incrementToken()) {

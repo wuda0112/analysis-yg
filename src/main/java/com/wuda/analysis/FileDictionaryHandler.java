@@ -9,9 +9,13 @@ import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.io.FileUtils;
@@ -42,6 +46,30 @@ public class FileDictionaryHandler implements DictionaryHandler {
 	 * 词典,使用静态final修饰,目的是保证词典全量的只被加载一次(当然不是static final就有这样的效果,靠代码保证),增量的才会实时加载.
 	 */
 	private static final Trie dict = new Trie();
+	/**
+	 * 停止词 .
+	 */
+	private static final Set<String> stopwords = new HashSet<>();
+	/**
+	 * 停止词是否已经加载完成.
+	 */
+	private static final AtomicBoolean stopwordLoadComplete = new AtomicBoolean(false);
+	/**
+	 * 数词 .
+	 */
+	private static final Set<String> numerals = new HashSet<>();
+	/**
+	 * 数词是否已经加载完成.
+	 */
+	private static final AtomicBoolean numeralLoadComplete = new AtomicBoolean(false);
+	/**
+	 * 量词 .
+	 */
+	private static final List<String> quantifiers = new LinkedList<>();
+	/**
+	 * 量词是否已经加载完成.
+	 */
+	public static final AtomicBoolean quantifierLoadComplete = new AtomicBoolean(false);
 
 	/**
 	 * 实际上真正去文件中加载词典的次数,即使{@link #loadAll()}方法被调用多次,也不一定真正去文件中加载单词.
@@ -49,9 +77,14 @@ public class FileDictionaryHandler implements DictionaryHandler {
 	private static AtomicInteger actualLoadDictCount = new AtomicInteger(0);
 
 	/**
+	 * 实际上真正去文件中加载词典的次数.
+	 */
+	private static AtomicInteger actualLoadDictCountForLog = new AtomicInteger(0);
+
+	/**
 	 * 保存词典的目录.只能是目录.
 	 */
-	private String directory;
+	public static String directory;
 
 	/**
 	 * 是否异步加载词典.
@@ -82,7 +115,7 @@ public class FileDictionaryHandler implements DictionaryHandler {
 	 * 都只会真正意义上的去加载词典文件一次.
 	 * 
 	 */
-	private void loadAll() {
+	public void loadAll() {
 		if (directory == null || directory.isEmpty()) {
 			throw new DictionaryHandleException("请先指定词典所在的目录");
 		}
@@ -93,6 +126,11 @@ public class FileDictionaryHandler implements DictionaryHandler {
 		if (tryGetLoadAllDictChance() == false) {// 没有获得机会(其他线程已经加载了词典,不需要重复加载词典)
 			return;
 		}
+		/**
+		 * 监控词典目录.这里只会执行一次.
+		 */
+		startLoadChangedThread();
+		
 		File[] files = dictDir.listFiles();
 		if (files == null || files.length < 1) {
 			return;
@@ -104,6 +142,7 @@ public class FileDictionaryHandler implements DictionaryHandler {
 		if (isAsynLoadDict) {
 			executors = Executors.newCachedThreadPool();
 		}
+		logger.info("load dict " + actualLoadDictCountForLog.incrementAndGet());
 		for (File file : files) {
 			Worker worker = new Worker();
 			worker.setFile(file);
@@ -129,35 +168,140 @@ public class FileDictionaryHandler implements DictionaryHandler {
 		if (file == null || file.isDirectory()) {
 			return;
 		}
+		String fileName = file.getName();
+		long length = file.length();
+		if (isAsynLoadDict && length > 52428800) { // 50*1024*1024
+			try {
+				logger.info("dict file " + fileName + " length " + length + " sleep 10s");
+				Thread.sleep(10000);// 让小文件先加载
+			} catch (InterruptedException e) {
+				logger.warn(e.getMessage(), e);
+			}
+		}
+
+		DictType dictType = getDictType(fileName);
 		List<String> lines = null;
 		try {
 			lines = FileUtils.readLines(file, Constant.CHARSET_UTF8);
 		} catch (IOException e) {
 			logger.warn(e.getMessage() + "\t解析词典文件错误", e);
+			return;
 		}
 		if (lines == null || lines.isEmpty()) {
 			return;
 		}
-		String tokenType = lines.get(0);// 第一行是【TokenType】,表明这个文件中的所有token(单词)都是这种类型.
-		if (tokenType == null) {
-			StringBuilder builder = new StringBuilder("文件的第一行必须只能指定单词类型..如果已经指定了单词类型,则有可能是编码导致,请设置编码为【UTF-8无BOM格式编码】.");
-			builder.append("file:");
-			builder.append(file.toString());
-			String msg = builder.toString();
-			logger.warn(msg);
-			throw new UnknownTokenTypeException(msg);
-		}
 		synchronized (this) {
 			String line = null;
-			for (int i = 1; i < lines.size(); i++) {
+			int size = getActualSize(lines.size());
+			for (int i = 0; i < size; i++) {
 				line = lines.get(i);
 				if (line != null && !line.isEmpty()) {
-					dict.add(line, tokenType);
+					line = line.trim();
+					if (dictType == DictType.normal) {
+						String[] elements = parse(line);
+						dict.add(elements[0], elements[1]);
+						elements = null;
+					} else if (dictType == DictType.stopword_file) {
+						stopwords.add(line);
+						dict.add(line, null);
+					} else if (dictType == DictType.numeral_file) {
+						numerals.add(line);
+					} else if (dictType == DictType.quantifier_file) {
+						quantifiers.add(line);
+					}
 				}
+				line = null;
 				lines.set(i, null);// 释放内存,类似于list.clear()
 			}
 		}
+		if (dictType == DictType.stopword_file) {
+			stopwordLoadComplete.compareAndSet(false, true);
+		} else if (dictType == DictType.numeral_file) {
+			numeralLoadComplete.compareAndSet(false, true);
+		} else if (dictType == DictType.quantifier_file) {
+			quantifierLoadComplete.compareAndSet(false, true);
+		}
 		lines = null;// 释放内存
+		System.gc();
+		logger.info("load dict " + fileName + " completed ! free jvm memory "+AnalysisUtil.getFreeMemoryM());
+	}
+
+	/**
+	 * 实际使用的size,由于内存的限制,可能不能全部加载单词.
+	 * 
+	 * @param lines
+	 *            总的单词数量
+	 * @return 实际应该加载的数量
+	 */
+	private int getActualSize(int lines) {
+		long freeMemory = AnalysisUtil.getFreeMemoryM();
+		int count = Integer.MAX_VALUE;
+		if (freeMemory <= 512) {
+			count = 500000;
+		} else if (freeMemory > 512 && freeMemory <= 1024) {
+			count = 1500000;
+		} else if (freeMemory > 1024 && freeMemory <= 1536) {
+			count = 2000000;
+		} else if (freeMemory > 1536 && freeMemory <= 2048) {
+			count = 2700000;
+		} else if (freeMemory > 2048 && freeMemory <= 3072) {
+			count = 3500000;
+		}
+		int min = Math.min(count, lines);
+		logger.info("当前可用jvm内存是：" + freeMemory + "M,应加载单词数：" + lines + ",实际加载单词数：" + min);
+		return min;
+	}
+
+	/**
+	 * 根据文件名称判断单词类型.
+	 * 
+	 * @param fileName
+	 *            文件名称
+	 * @return DictType
+	 */
+	private DictType getDictType(String fileName) {
+		DictType dictType = null;
+		if (fileName.equals(Constant.stopword_file_name)) {
+			dictType = DictType.stopword_file;
+		} else if (fileName.equals(Constant.numeral_file_name)) {
+			dictType = DictType.numeral_file;
+		} else if (fileName.equals(Constant.quantifier_file_name)) {
+			dictType = DictType.quantifier_file;
+		} else {
+			dictType = DictType.normal;
+		}
+		return dictType;
+	}
+
+	/**
+	 * 只能识别水平制表符,单词与词性之间用水平制表符分割.
+	 * 
+	 * @param line
+	 *            文本的一行
+	 * @return 数组的下标0是单词,下标1是词性
+	 */
+	private String[] parse(String line) {
+		String[] elements = new String[2];
+		int firstHT = line.indexOf(9);// 水平制表符
+		String word = line;
+		String pos = null;
+		if (firstHT != -1) {
+			word = line.substring(0, firstHT);
+			word = word.trim();
+			String pos_count = line.substring(firstHT + 1);
+			int secondHT = pos_count.indexOf(9);// 水平制表符
+			if (secondHT != -1) {// 词性和数量用水平制表符隔开
+				pos = pos_count.substring(0, secondHT);
+			} else {
+				pos = pos_count;
+			}
+			if (pos != null) {
+				pos = pos.trim();
+			}
+		}
+		elements[0] = word;
+		elements[1] = pos;
+		return elements;
 	}
 
 	/**
@@ -218,10 +362,6 @@ public class FileDictionaryHandler implements DictionaryHandler {
 	public Trie getDictionary() {
 		if (actualLoadDictCount.get() == 0) {
 			loadAll();
-			/**
-			 * 监控词典目录.
-			 */
-			startLoadChangedThread();
 		}
 		return dict;
 	}
@@ -270,7 +410,7 @@ public class FileDictionaryHandler implements DictionaryHandler {
 	 *            the directory to set
 	 */
 	public void setDirectory(String directory) {
-		this.directory = directory;
+		FileDictionaryHandler.directory = directory;
 	}
 
 	/**
@@ -295,5 +435,39 @@ public class FileDictionaryHandler implements DictionaryHandler {
 		public void run() {
 			loadChanged();
 		}
+	}
+
+	@Override
+	public Set<String> getStopwords() {
+		return stopwords;
+	}
+
+	@Override
+	public Set<String> getNumerals() {
+		return numerals;
+	}
+
+	@Override
+	public List<String> getQuantifiers() {
+		return quantifiers;
+	}
+
+	enum DictType {
+		/**
+		 * 停止词
+		 */
+		stopword_file,
+		/**
+		 * 数词
+		 */
+		numeral_file,
+		/**
+		 * 量词.
+		 */
+		quantifier_file,
+		/**
+		 * 常规的
+		 */
+		normal;
 	}
 }

@@ -27,14 +27,9 @@ public class YgTokenizer extends Tokenizer {
 	private final PositionIncrementAttribute posIncrAtt = addAttribute(PositionIncrementAttribute.class);
 
 	/**
-	 * 词典所在的目录.
+	 * 是否枚举所有的单词.
 	 */
-	private String dictDir = null;
-
-	/**
-	 * 是否异步加载词典.
-	 */
-	private boolean isAsynLoadDict = true;
+	private boolean enumerateAll = true;
 
 	/**
 	 * 文本处理器.
@@ -47,17 +42,11 @@ public class YgTokenizer extends Tokenizer {
 	private TextHandlerSharedAttribute textHandlerSharedAttribute = null;
 
 	/**
-	 * yg tokenizer是一个机遇词典的分析器,所以指定一个词典目录来构造实例.
+	 * yg tokenizer 构造实例.
 	 * 
-	 * @param dictDir
-	 *            词典所在的目录
-	 * @param isAsynLoadDict
-	 *            是否异步加载词典
 	 */
-	public YgTokenizer(String dictDir, boolean isAsynLoadDict) {
+	public YgTokenizer() {
 		super();
-		this.dictDir = dictDir;
-		this.isAsynLoadDict = isAsynLoadDict;
 		tryInitTextHandler();
 	}
 
@@ -86,13 +75,12 @@ public class YgTokenizer extends Tokenizer {
 			if (initTextHandlerCount.compareAndSet(count, count + 1)) {
 				textHandlerSharedAttribute = new TextHandlerSharedAttribute();
 				/**
-				 * 文本先处理成句子.你肯定很奇怪,说好要处理文本的,但是连文本都没有给此handler,怎么处理?是的,由于lucene
-				 * TokenStream API规范,tokenizer是可以重用的,即同一个实例可以处理多次的text
+				 * 文本先处理成句子.你肯定很奇怪,说好要处理文本的,但是连文本都没有给此handler,怎么处理?是的,由于lucene TokenStream
+				 * API规范,tokenizer是可以重用的,即同一个实例可以处理多次的text
 				 * source,因此,同样根据lucene的规范,我们把设置文本的方法放到了reset()方法中.
 				 */
 				bottomHandler = new SentenceTextHandler(textHandlerSharedAttribute);
-				textHandler = new DictBasedTextHandlerFilter(bottomHandler, textHandlerSharedAttribute);// 从句子中获取分词
-				textHandler.loadDictFrom(dictDir, isAsynLoadDict);// 如果不是异步加载,就不能在构造方法中调用此方法
+				textHandler = new DictBasedTextHandlerFilter(bottomHandler, textHandlerSharedAttribute);// 基于词典,从句子中获取分词
 				return true;
 			}
 		}
@@ -113,16 +101,18 @@ public class YgTokenizer extends Tokenizer {
 	}
 
 	/**
-	 * @return the dictDir
+	 * @return the enumerateAll
 	 */
-	public String getDictDir() {
-		return dictDir;
+	public boolean isEnumerateAll() {
+		return enumerateAll;
 	}
 
 	/**
-	 * @return the isAsynLoadDict
+	 * @param enumerateAll
+	 *            the enumerateAll to set
 	 */
-	public boolean isAsynLoadDict() {
-		return isAsynLoadDict;
+	public void setEnumerateAll(boolean enumerateAll) {
+		this.enumerateAll = enumerateAll;
+		textHandler.setEnumerateAll(enumerateAll);
 	}
 }

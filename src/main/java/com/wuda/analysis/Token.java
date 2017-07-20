@@ -1,6 +1,5 @@
 package com.wuda.analysis;
 
-import java.util.Set;
 
 /**
  * token指任何的文本片段,不一定就是单词.
@@ -22,11 +21,15 @@ public class Token {
 	 * 在原始文本中的结束位置.
 	 */
 	private int endOffset = 0;
+	/**
+	 * 当此字段值为true时,表示此token是一个单词(短语等等).
+	 */
+	private boolean isWord = false;
 
 	/**
 	 * token类型.
 	 */
-	private Set<String> types = null;
+	private String types = null;
 
 	/**
 	 * @return the value
@@ -74,34 +77,45 @@ public class Token {
 	}
 
 	/**
+	 * 多个type之间用","隔开.
+	 * 
 	 * @return the types
 	 */
-	public Set<String> getTypes() {
+	public String getTypes() {
 		return types;
 	}
 
 	/**
+	 * 多个type之间用","隔开.
 	 * @param types
 	 *            the types to set
 	 */
-	public void setTypes(Set<String> types) {
+	public void setTypes(String types) {
 		this.types = types;
 	}
 
 	/**
-	 * 获取字符串形式的类型,多个类型之间用","隔开.
-	 * 
-	 * @return null-如果不存在类型
+	 * @param type
+	 *            the types to set
 	 */
-	public String getTypeString() {
-		if (types == null || types.isEmpty()) {
-			return null;
+	public void setType(String type) {
+		if (type == null) {
+
 		}
-		StringBuilder builder = new StringBuilder();
-		for (String type : types) {
-			builder.append(type);
-			builder.append(",");
-		}
-		return builder.substring(0, builder.length() - 1);
+	}
+
+	/**
+	 * @return the isWord
+	 */
+	public boolean isWord() {
+		return isWord;
+	}
+
+	/**
+	 * @param isWord
+	 *            the isWord to set
+	 */
+	public void setWord(boolean isWord) {
+		this.isWord = isWord;
 	}
 }

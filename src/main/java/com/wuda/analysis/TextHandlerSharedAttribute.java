@@ -1,5 +1,7 @@
 package com.wuda.analysis;
 
+import com.wuda.Constant;
+
 /**
  * 在{@link TextHandler}与{@link TextHandlerFilter}组成的处理链中,所有的handler共享这一个类的实例.
  * 
@@ -20,6 +22,11 @@ public class TextHandlerSharedAttribute {
 	 * token类型.
 	 */
 	private String type = null;
+
+	/**
+	 * 当此字段值为true时,表示此token是一个单词(短语等等).
+	 */
+	private boolean isWord = false;
 
 	/**
 	 * 清除属性值.
@@ -116,7 +123,10 @@ public class TextHandlerSharedAttribute {
 	 * @return the type
 	 */
 	public String getType() {
-		return type;
+		if (isWord) {
+			return type;
+		}
+		return Constant.NOT_A_WORD;
 	}
 
 	/**
@@ -125,6 +135,21 @@ public class TextHandlerSharedAttribute {
 	 */
 	public void setType(String type) {
 		this.type = type;
+	}
+
+	/**
+	 * @return the isWord
+	 */
+	public boolean isWord() {
+		return isWord;
+	}
+
+	/**
+	 * @param isWord
+	 *            the isWord to set
+	 */
+	public void setWord(boolean isWord) {
+		this.isWord = isWord;
 	}
 
 }
