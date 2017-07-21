@@ -1,6 +1,5 @@
 package com.wuda.analysis;
 
-
 /**
  * token指任何的文本片段,不一定就是单词.
  * 
@@ -8,7 +7,6 @@ package com.wuda.analysis;
  *
  */
 public class Token {
-
 	/**
 	 * 分出来的字符串.
 	 */
@@ -87,6 +85,7 @@ public class Token {
 
 	/**
 	 * 多个type之间用","隔开.
+	 * 
 	 * @param types
 	 *            the types to set
 	 */
@@ -117,5 +116,10 @@ public class Token {
 	 */
 	public void setWord(boolean isWord) {
 		this.isWord = isWord;
+	}
+
+	@Override
+	public String toString() {
+		return value + "\ttype:" + types + "\t(" + startOffset + "," + endOffset + ")";
 	}
 }

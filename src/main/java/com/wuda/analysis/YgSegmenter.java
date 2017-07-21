@@ -2,10 +2,12 @@ package com.wuda.analysis;
 
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.wuda.Constant;
+import com.wuda.utils.graph.TokenGraph;
 import com.wuda.utils.tree.BasicTree.Node;
 
 /**
@@ -16,6 +18,8 @@ import com.wuda.utils.tree.BasicTree.Node;
  */
 public class YgSegmenter {
 
+	private Logger logger = LoggerFactory.getLogger(getClass());
+
 	/**
 	 * 词典.
 	 */
@@ -23,7 +27,7 @@ public class YgSegmenter {
 	/**
 	 * 是否枚举所有的单词.
 	 */
-	private boolean enumerateAll = true;
+	private boolean enumerateAll = false;
 
 	/**
 	 * 检查此分词器是否有词典.
@@ -50,6 +54,87 @@ public class YgSegmenter {
 	}
 
 	/**
+	 * 从输入中获取token(单词)组成的图.
+	 * 
+	 * @param input
+	 *            输入
+	 * @return 词图
+	 */
+	public TokenGraph getTokenGraph(char[] input) {
+		checkDict();
+		if (input == null || input.length < 1) {
+			return null;
+		}
+		int inputLength = input.length;
+		Node parent = dictionary.getRoot();// 从root开始查找
+		int startOffset = 0;
+		int currentIndex = 0;
+
+		LinkedList<Token> tokensPerRound = new LinkedList<>();
+		TokenGraph graph = new TokenGraph();
+
+		while (startOffset < inputLength) {
+			tokensPerRound.clear();
+
+			Token sigle = getToken(input, null, startOffset, startOffset, false);
+			tokensPerRound.addLast(sigle);
+
+			parent = dictionary.getRoot();
+			for (currentIndex = startOffset; currentIndex < inputLength; currentIndex++) {
+				char c = input[currentIndex];
+				Node child = dictionary.find(parent, c);
+				if (child == null) { // 没有找到
+					break;
+				}
+				if (child.isTokenEnd()) {// 匹配一个单词
+					Token token = getToken(input, child, startOffset, currentIndex, true);
+					handleTokenPerRound(tokensPerRound, token);
+				}
+				parent = child;
+			}
+			addToGraph(graph, tokensPerRound);
+			startOffset = tokensPerRound.getFirst().getEndOffset();
+		}
+		graph.finish();
+		return graph;
+	}
+
+	/**
+	 * 将这一轮所有的token加入词图中.
+	 * 
+	 * @param graph
+	 *            词图
+	 * @param tokensPerRound
+	 *            这一轮提取的所有token
+	 */
+	private void addToGraph(TokenGraph graph, LinkedList<Token> tokensPerRound) {
+		for (Token token : tokensPerRound) {
+			graph.add(token);
+		}
+	}
+
+	/**
+	 * 每一轮都有可能分出多个词,处理这一轮的分词.
+	 * 
+	 * @param tokensPerRound
+	 *            这一轮已经提取的token
+	 * @param current
+	 *            这一轮最新提取的token
+	 */
+	private void handleTokenPerRound(LinkedList<Token> tokensPerRound, Token current) {
+		if (tokensPerRound.isEmpty()) {
+			tokensPerRound.addLast(current);
+			return;
+		}
+		if (current.getEndOffset() - current.getStartOffset() <= 3) {
+			tokensPerRound.clear();
+			tokensPerRound.addLast(current);
+		} else {
+			tokensPerRound.addLast(current);
+		}
+	}
+
+	/**
 	 * 从输入中获取token(单词).
 	 * 
 	 * @param input
@@ -62,18 +147,22 @@ public class YgSegmenter {
 			return null;
 		}
 		int inputLength = input.length;
-		LinkedList<Token> tokens = new LinkedList<>();
-		Node parent = dictionary.getRoot();// 从root开始查找
+		LinkedList<Token> allTokens = new LinkedList<>();
+		Node parent = null;
 		int startOffset = 0;
+		int endOffset = inputLength;
 		int currentIndex = 0;
+
+		LinkedList<Token> tokensPerRound = new LinkedList<>();
 
 		int latestTokenEndPosition = -1;// 最近的一个token的结束位置
 
+		int roundCount = 0;
+
 		while (startOffset < inputLength) {
-			AtomicBoolean everMatch = new AtomicBoolean(false);
-			AtomicInteger firstNotSingleTokenEndPosition = new AtomicInteger(-1);// 当前这次匹配中,第一个token的结束位置
-			parent = dictionary.getRoot();
-			for (currentIndex = startOffset; currentIndex < inputLength; currentIndex++) {
+			parent = dictionary.getRoot();// 从root开始查找
+			tokensPerRound.clear();
+			for (currentIndex = startOffset; currentIndex < endOffset; currentIndex++) {
 				char c = input[currentIndex];
 				Node child = dictionary.find(parent, c);
 				if (child == null) { // 没有找到
@@ -85,113 +174,77 @@ public class YgSegmenter {
 					 */
 					if (startOffset > latestTokenEndPosition + 1) {
 						Token token = getToken(input, null, latestTokenEndPosition + 1, startOffset - 1, false);
-						tokens.addLast(token);
+						allTokens.addLast(token);
 						latestTokenEndPosition = currentIndex;
 					}
 
 					Token token = getToken(input, child, startOffset, currentIndex, true);
-					append(tokens, token, enumerateAll);
-					latestTokenEndPosition = currentIndex;
-					everMatch.compareAndSet(false, true);
-					if (currentIndex - startOffset >= 1) {// 不是单字
-						firstNotSingleTokenEndPosition.compareAndSet(-1, currentIndex);
+					handleTokenPerRound(tokensPerRound, token);
+					if (currentIndex > latestTokenEndPosition) {
+						latestTokenEndPosition = currentIndex;
 					}
 				}
 				parent = child;
 			}
-			startOffset = advance(startOffset, everMatch, firstNotSingleTokenEndPosition.get(), latestTokenEndPosition);
+			int[] offset = nextRoundOffset(startOffset, tokensPerRound, latestTokenEndPosition, inputLength);
+			startOffset = offset[0];
+			endOffset = offset[1];
+			if (tokensPerRound.size() > 0) {
+				allTokens.addAll(tokensPerRound);
+			}
+			roundCount++;
+			if (roundCount > inputLength) {// 正常情况下是不可能的,为了安全,在这里冗余
+				logger.warn("what?提取词的次数比文本还长?当前文本是:" + new String(input));
+				break;
+			}
 		}
+		tokensPerRound.clear();
+		tokensPerRound = null;
 		/**
 		 * 最后一个单词与最后一个字符(包含)之间的内容,并不是单词,但是也要返回.
 		 */
 		int lastCharIndex = inputLength - 1;
 		if (lastCharIndex > latestTokenEndPosition) {
 			Token token = getToken(input, null, latestTokenEndPosition + 1, lastCharIndex, false);
-			tokens.addLast(token);
+			allTokens.addLast(token);
 			latestTokenEndPosition = currentIndex;
 		}
-		return tokens;
+		return allTokens;
 	}
 
 	/**
-	 * 计算下一次启动的位置.
+	 * 计算下一次启动的位置和结束的位置.
 	 * 
-	 * @param currentStartOffset
-	 * @param everMatch
-	 * @param firstNotSingleTokenEndPosition
-	 * @return 下一次启动的位置
+	 * @return 下一次启动和结束的位置
 	 */
-	private int advance(int currentStartOffset, AtomicBoolean everMatch, int firstNotSingleTokenEndPosition,
-			int latestTokenEndPosition) {
-		int nextStartOffset = currentStartOffset;
+	private int[] nextRoundOffset(int currentStartOffset, LinkedList<Token> tokensPerRound, int latestTokenEndPosition,
+			int inputLength) {
+		int nextStartOffset = 0;
+		int nextEndOffset = Integer.MAX_VALUE;
 		if (enumerateAll) {
-			nextStartOffset++;
+			nextStartOffset = currentStartOffset + 1;
 		} else {
-			if (everMatch.get()) {
-				nextStartOffset = latestTokenEndPosition + 1;
+			if (tokensPerRound.size() > 0) {
+				Token last = tokensPerRound.getLast();
+				Token first = tokensPerRound.getFirst();
+				if (tokensPerRound.size() == 1 || last.getEndOffset() <= latestTokenEndPosition
+						|| last.getEndOffset() - first.getEndOffset() <= 1) {
+					nextStartOffset = latestTokenEndPosition + 1;
+				} else {
+					nextStartOffset = tokensPerRound.getFirst().getEndOffset();
+					nextEndOffset = tokensPerRound.getLast().getEndOffset();
+				}
 			} else {
-				nextStartOffset++;
+				if (currentStartOffset <= latestTokenEndPosition) {
+					nextStartOffset = latestTokenEndPosition + 1;
+				} else {
+					nextStartOffset = currentStartOffset + 1;
+				}
 			}
 		}
-		return nextStartOffset;
-	}
-
-	/**
-	 * 追加token.
-	 * 
-	 * @param tokens
-	 *            已经存在的token
-	 * @param current
-	 *            本次追加的token
-	 * @param enumerateAll
-	 *            如果是false,则具有包含关系的token只能存在更大者,被包含的token被移除.
-	 */
-	private void append(LinkedList<Token> tokens, Token current, boolean enumerateAll) {
-		if (enumerateAll) {
-			tokens.addLast(current);
-			return;
-		}
-		Token last = tokens.peekLast();
-		if (last == null) {
-			tokens.addLast(current);
-			return;
-		}
-		String lastTokenTypes = last.getTypes();
-		boolean lastTokenHasImportantType = false;
-		if (lastTokenTypes != null && !lastTokenTypes.isEmpty()) {
-			if (lastTokenTypes.contains(Constant.important_type_npc)) {
-				lastTokenHasImportantType = true;
-			} else if (lastTokenTypes.contains(Constant.important_type_npb)) {
-				lastTokenHasImportantType = true;
-			} else if (lastTokenTypes.contains(Constant.important_type_npu)) {
-				lastTokenHasImportantType = true;
-			}
-		}
-
-		String currentTokenTypes = current.getTypes();
-		boolean currentTokenHasImportantType = false;
-		if (currentTokenTypes != null && !currentTokenTypes.isEmpty()) {
-			if (currentTokenTypes.contains(Constant.important_type_npc)) {
-				currentTokenHasImportantType = true;
-			} else if (currentTokenTypes.contains(Constant.important_type_npb)) {
-				currentTokenHasImportantType = true;
-			} else if (currentTokenTypes.contains(Constant.important_type_npu)) {
-				currentTokenHasImportantType = true;
-			}
-		}
-
-		if (last.getStartOffset() >= current.getStartOffset() && last.getEndOffset() <= current.getEndOffset()) {// 当前token包含上一个token
-			if (!lastTokenHasImportantType || currentTokenHasImportantType) {
-				tokens.removeLast();
-			}
-			tokens.addLast(current);
-		} else if (last.getStartOffset() <= current.getStartOffset() && last.getEndOffset() >= current.getEndOffset()) {// 上一个token包含上当前token
-			if (currentTokenHasImportantType && !lastTokenHasImportantType) {
-				tokens.add(current);
-			}
-		} else {
-			tokens.addLast(current);
-		}
+		nextEndOffset = Math.min(nextEndOffset, inputLength);
+		int[] offset = new int[] { nextStartOffset, nextEndOffset };
+		return offset;
 	}
 
 	/**
@@ -213,7 +266,7 @@ public class YgSegmenter {
 		Token token = new Token();
 		token.setValue(new String(chars, startOffset, currentOffset - startOffset + 1));
 		token.setStartOffset(startOffset);
-		token.setEndOffset(currentOffset);
+		token.setEndOffset(currentOffset + 1);// [startOffset,endOffset)
 		token.setWord(isWord);
 		if (isWord) {
 			token.setTypes(lastNode.getTypes());

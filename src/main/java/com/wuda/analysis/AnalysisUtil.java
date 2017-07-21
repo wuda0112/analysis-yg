@@ -35,7 +35,7 @@ public class AnalysisUtil {
 				|| character == c55 || character == c56 || character == c57 || character == c58 || character == c59
 				|| character == c60 || character == c61 || character == c62 || character == c63 || character == c64
 				|| character == c65 || character == c66 || character == c67 || character == c68 || character == c69
-				|| character == c70 || character == c71 || character == c73) {
+				|| character == c70 || character == c71 || character == c73 || character == c75 || character == c76) {
 			return true;
 		}
 		return false;
@@ -138,4 +138,6 @@ public class AnalysisUtil {
 	// public final static int c4=0xff01; // //连字符­
 	// public final static int c4=0xff01; // //上横线¯
 	public final static int c74 = 0x3000; // \u3000//空
+	public final static int c75 = 0xff05;// 全角百分号％
+	public final static int c76 = 0x0025; // 百分号%
 }

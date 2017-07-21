@@ -25,7 +25,7 @@ public class TextHandlerTest {
 		while (i < 2) { // 调用两次是为了测试重用功能
 			i++;
 			try {
-				String text = "百岁山矿泉水和农夫山泉饮用水500ml";// 根据你自己的词典的内容测试分词清单
+				String text = "百岁山超级矿泉水好喝的饮用水最好是大瓶的";// 根据你自己的词典的内容测试分词清单
 				Reader input = new StringReader(text);
 
 				bottomHandler.setReader(input);

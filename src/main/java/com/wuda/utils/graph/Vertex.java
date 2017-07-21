@@ -63,7 +63,7 @@ public class Vertex {
 	 * @return 两个顶点之间的关系对象
 	 */
 	public Relationship createRelationshipTo(Vertex end, RelationshipType relationshipType) {
-		Relationship relationship = new Relationship(this, end, relationshipType);
+		Relationship relationship = new Relationship(end, relationshipType);
 		relationships.addLast(relationship);
 		return relationship;
 	}

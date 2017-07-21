@@ -76,7 +76,7 @@ public class DictBasedTextHandlerFilter extends TextHandlerFilter {
 		attribute.tokenAppend(token.getValue());
 		attribute.setType(token.getTypes());
 		attribute.setStartOffset(baseCoord + token.getStartOffset());
-		attribute.setEndOffset(baseCoord + token.getEndOffset() + 1);
+		attribute.setEndOffset(baseCoord + token.getEndOffset());
 		attribute.setWord(token.isWord());
 	}
 
