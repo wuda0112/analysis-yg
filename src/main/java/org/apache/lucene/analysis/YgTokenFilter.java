@@ -23,7 +23,7 @@ public class YgTokenFilter extends TokenFilter {
 	}
 
 	@Override
-	public boolean incrementToken() throws IOException {
+	public final boolean incrementToken() throws IOException {
 		if (fillAttr()) {
 			return true;
 		}
@@ -44,7 +44,7 @@ public class YgTokenFilter extends TokenFilter {
 		String type = typeAttr.type();
 		this.type = type;
 		String token = charTermAttr.toString();
-		if (type != null && type.equalsIgnoreCase(Constant.NOT_A_WORD)) {
+		if (type != null && type.equalsIgnoreCase(Constant.fixed_token_type_not_a_word)) {
 			char[] charArray = token.toCharArray();
 			for (char c : charArray) {
 				if (c != PatternCaptureGroupAndReplaceTokenFilter.replacement) {
@@ -52,7 +52,7 @@ public class YgTokenFilter extends TokenFilter {
 				}
 			}
 		} else if (type != null
-				&& (type.equalsIgnoreCase(Constant.type_dw) || type.equalsIgnoreCase(Constant.type_enn))) {
+				&& (type.equalsIgnoreCase(Constant.fixed_token_type_dw) || type.equalsIgnoreCase(Constant.fixed_token_type_enn))) {
 			/**
 			 * 由正则表达式提取的内容.
 			 */

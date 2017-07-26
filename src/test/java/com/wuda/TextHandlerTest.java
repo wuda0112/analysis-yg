@@ -25,7 +25,7 @@ public class TextHandlerTest {
 		while (i < 2) { // 调用两次是为了测试重用功能
 			i++;
 			try {
-				String text = "百岁山超级矿泉水好喝的饮用水最好是大瓶的";// 根据你自己的词典的内容测试分词清单
+				String text = "买个手机壳,买个BB霜";// 根据你自己的词典的内容测试分词清单
 				Reader input = new StringReader(text);
 
 				bottomHandler.setReader(input);
@@ -34,7 +34,7 @@ public class TextHandlerTest {
 				System.out.println("\n=============加载词典...====================\n");
 				long startTime = System.currentTimeMillis();
 				FileDictionaryHandler handler = new FileDictionaryHandler();
-				handler.setDirectory("e:/dict");
+				handler.setDirectory("e:/test_dict");
 				handler.setIsAsynLoadDict(false);
 				handler.loadAll(); // 从词典目录加载词典,同步加载词典
 				long end = System.currentTimeMillis();

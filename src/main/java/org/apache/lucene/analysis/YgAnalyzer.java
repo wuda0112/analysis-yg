@@ -3,14 +3,9 @@ package org.apache.lucene.analysis;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
 import org.apache.lucene.analysis.Analyzer;
@@ -56,18 +51,29 @@ public class YgAnalyzer extends Analyzer {
 	/**
 	 * 是否枚举所有的单词.
 	 */
-	private boolean enumerateAll = true;
+	private boolean enumerateAll = false;
+
+	private static Pattern[] patternArray = null;
+	private static String[] patternNamesArray = null;
+
+	static {
+		patternArray = new Pattern[2];
+		patternNamesArray = new String[2];
+		patternArray[0] = Constant.fixed_token_type_enn_regex;
+		patternNamesArray[0] = Constant.fixed_token_type_enn;
+
+		patternArray[1] = Constant.fixed_token_type_dw_regex;
+		patternNamesArray[1] = Constant.fixed_token_type_dw;
+	}
 
 	@Override
 	protected TokenStreamComponents createComponents(String fieldName) {
 		YgTokenizer source = new YgTokenizer();
 		source.setEnumerateAll(enumerateAll);
 		PatternCaptureGroupAndReplaceTokenFilter patternCaptureGroupAndReplaceTokenFilter = null;
-		getPatterns();
-		getPatternNames();
 		if (patternArray != null && patternNamesArray != null && patternArray.length == patternNamesArray.length) {
 			patternCaptureGroupAndReplaceTokenFilter = new PatternCaptureGroupAndReplaceTokenFilter(source, false, true,
-					getPatterns(), getPatternNames());
+					patternArray, patternNamesArray);
 		}
 		YgTokenFilter ygTokenFilter = null;
 		if (patternCaptureGroupAndReplaceTokenFilter != null) {
@@ -146,22 +152,18 @@ public class YgAnalyzer extends Analyzer {
 	/**
 	 * 获取停止词factory.
 	 * 
-	 * @param stopwordFileName
-	 *            停止词文件文件名称
+	 * @param stopwordFileNames
+	 *            停止词文件文件名称,可以是多个,用英文逗号隔开.
 	 * @return factory
 	 * @throws IOException
 	 *             处理文件异常
 	 */
-	private StopFilterFactory getStopFilterFactory(String stopwordFileName) throws IOException {
-		if (stopwordFileName == null) {
-			return null;
-		}
-		File file = new File(FileDictionaryHandler.directory, stopwordFileName);
-		if (!file.exists() || file.isDirectory()) {
+	private StopFilterFactory getStopFilterFactory(String stopwordFileNames) throws IOException {
+		if (stopwordFileNames == null) {
 			return null;
 		}
 		Map<String, String> filterArgs = new HashMap<String, String>();
-		filterArgs.put("words", stopwordFileName);
+		filterArgs.put("words", stopwordFileNames);
 		StopFilterFactory factory = new StopFilterFactory(filterArgs);
 		factory.inform(new FilesystemResourceLoader(Paths.get(FileDictionaryHandler.directory)));
 		return factory;
@@ -177,7 +179,12 @@ public class YgAnalyzer extends Analyzer {
 	private TokenStream createStopFilter(TokenStream input) {
 		try {
 			if (stopFilterFactory == null && stopFilterFactoryCreated.get() == false) {
-				stopFilterFactory = getStopFilterFactory(Constant.stopword_file_name);
+				StringBuilder builder = new StringBuilder(Constant.stopword_file_name);
+				if (Constant.ik_stopword_file_name != null && !Constant.ik_stopword_file_name.isEmpty()) {
+					builder.append(",");
+					builder.append(Constant.ik_stopword_file_name);
+				}
+				stopFilterFactory = getStopFilterFactory(builder.toString());
 				stopFilterFactoryCreated.compareAndSet(false, true);
 			}
 		} catch (IOException e) {
@@ -204,102 +211,5 @@ public class YgAnalyzer extends Analyzer {
 	 */
 	public void setEnumerateAll(boolean enumerateAll) {
 		this.enumerateAll = enumerateAll;
-	}
-
-	/**
-	 * 生成pattern的次数.
-	 */
-	private static AtomicInteger actualGenPatternCount = new AtomicInteger(0);
-
-	/**
-	 * 尝试获取生成正则表达式的机会.
-	 * 
-	 * @return true-获得了机会,false-没有机会
-	 */
-	private final boolean tryGetGenPatternChance() {
-		int count;
-		while ((count = actualGenPatternCount.get()) == 0) {
-			if (actualGenPatternCount.compareAndSet(count, count + 1)) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	private static LinkedList<Pattern> patterns = new LinkedList<>();
-	private static Pattern[] patternArray = null;
-	private static LinkedList<String> patternNames = new LinkedList<>();
-	private static String[] patternNamesArray = null;
-
-	static {
-		Pattern pattern1 = Pattern.compile("([a-zA-z\\d]+)");// 英文和数字
-		patterns.addLast(pattern1);
-		patternNames.addLast(Constant.type_enn);
-	}
-
-	private Pattern[] getPatterns() {
-		if (patternArray != null && patternArray.length == 2) {
-			return patternArray;
-		}
-		if (FileDictionaryHandler.quantifierLoadComplete.get() == true && !patternNames.contains(Constant.type_dw)) {
-			if (tryGetGenPatternChance()) {
-				Pattern quantifierPattern = Pattern.compile(getQuantifierPatternRegex(), Pattern.CASE_INSENSITIVE);
-				patterns.addFirst(quantifierPattern);
-				patternNames.addFirst(Constant.type_dw);
-			}
-		}
-		patternArray = new Pattern[patterns.size()];
-		return patterns.toArray(patternArray);
-	}
-
-	private String[] getPatternNames() {
-		if (patternNamesArray != null && patternNamesArray.length == 2) {
-			return patternNamesArray;
-		}
-		patternNamesArray = new String[patternNames.size()];
-		return patternNames.toArray(patternNamesArray);
-	}
-
-	/**
-	 * 获取数量词正则表达式.
-	 * 
-	 * @return 数量词正则表达式
-	 */
-	private String getQuantifierPatternRegex() {
-		FileDictionaryHandler handler = new FileDictionaryHandler();
-		List<String> quantifiers = handler.getQuantifiers();
-		Collections.sort(quantifiers, new Comparator<String>() {// 按单位长短排序,长的拍前面
-			@Override
-			public int compare(String o1, String o2) {
-				if (o1.length() > o2.length()) {
-					return -1;
-				} else if (o1.length() < o2.length()) {
-					return 1;
-				}
-				return 0;
-			}
-		});
-		StringBuilder regex = new StringBuilder("(");
-		regex.append(Constant.default_numeral_regex);
-		if (quantifiers == null || quantifiers.isEmpty()) {
-			regex.append(Constant.default_quantifier_regex);
-		} else {
-			regex.append("(?:");
-			for (String quantifier : quantifiers) {
-				if (quantifier == null) {
-					continue;
-				}
-				quantifier = quantifier.trim();
-				if (quantifier.equals("(") || quantifier.equals(")")) {
-					continue;
-				}
-				regex.append(quantifier);
-				regex.append("|");
-			}
-			regex.deleteCharAt(regex.length() - 1);// 删除最后一个“|”
-			regex.append(")");
-		}
-		regex.append(")");
-		return regex.toString();
 	}
 }

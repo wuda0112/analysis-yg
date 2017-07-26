@@ -35,6 +35,8 @@ public class TextHandlerSharedAttribute {
 		token.delete(0, token.length());
 		startOffset = 0;
 		endOffset = 0;
+		isWord = false;
+		type = null;
 	}
 
 	/**
@@ -126,7 +128,7 @@ public class TextHandlerSharedAttribute {
 		if (isWord) {
 			return type;
 		}
-		return Constant.NOT_A_WORD;
+		return Constant.fixed_token_type_not_a_word;
 	}
 
 	/**
@@ -150,6 +152,27 @@ public class TextHandlerSharedAttribute {
 	 */
 	public void setWord(boolean isWord) {
 		this.isWord = isWord;
+	}
+
+	/**
+	 * 参考{@link StringBuilder#setLength(int)}.
+	 * 
+	 * @param newLength
+	 *            newLength
+	 */
+	public void setLength(int newLength) {
+		token.setLength(newLength);
+	}
+
+	/**
+	 * 参考{@link StringBuilder#substring(int)}
+	 * 
+	 * @param start
+	 *            start
+	 * @return sub string
+	 */
+	public String substring(int start) {
+		return token.substring(start);
 	}
 
 }

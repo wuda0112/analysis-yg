@@ -94,16 +94,6 @@ public class Token {
 	}
 
 	/**
-	 * @param type
-	 *            the types to set
-	 */
-	public void setType(String type) {
-		if (type == null) {
-
-		}
-	}
-
-	/**
 	 * @return the isWord
 	 */
 	public boolean isWord() {

@@ -20,7 +20,7 @@ public class DictBasedTextHandlerFilter extends TextHandlerFilter {
 	/**
 	 * 是否枚举所有的单词.
 	 */
-	private boolean enumerateAll = true;
+	private boolean enumerateAll = false;
 
 	/**
 	 * 所有的token(单词).
@@ -55,6 +55,9 @@ public class DictBasedTextHandlerFilter extends TextHandlerFilter {
 			return true;
 		}
 		if (input.incrementToken()) {
+			if (attribute.isWord()) {//从下一层传过来的已经是一个word
+				return true;
+			}
 			baseCoord = attribute.getStartOffset();
 			tokens = segmenter.getTokens(attribute.getTokenString());// 此时的token中保存的是句子,获取分词
 			if (tokens == null || tokens.isEmpty()) {

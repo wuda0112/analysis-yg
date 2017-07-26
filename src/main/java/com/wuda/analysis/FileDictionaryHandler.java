@@ -9,13 +9,9 @@ import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
-import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.io.FileUtils;
@@ -47,30 +43,9 @@ public class FileDictionaryHandler implements DictionaryHandler {
 	 */
 	private static final Trie dict = new Trie();
 	/**
-	 * 停止词 .
+	 * 分词时容易引起歧义的词.
 	 */
-	private static final Set<String> stopwords = new HashSet<>();
-	/**
-	 * 停止词是否已经加载完成.
-	 */
-	private static final AtomicBoolean stopwordLoadComplete = new AtomicBoolean(false);
-	/**
-	 * 数词 .
-	 */
-	private static final Set<String> numerals = new HashSet<>();
-	/**
-	 * 数词是否已经加载完成.
-	 */
-	private static final AtomicBoolean numeralLoadComplete = new AtomicBoolean(false);
-	/**
-	 * 量词 .
-	 */
-	private static final List<String> quantifiers = new LinkedList<>();
-	/**
-	 * 量词是否已经加载完成.
-	 */
-	public static final AtomicBoolean quantifierLoadComplete = new AtomicBoolean(false);
-
+	public static final Trie ambiguous = new Trie();
 	/**
 	 * 实际上真正去文件中加载词典的次数,即使{@link #loadAll()}方法被调用多次,也不一定真正去文件中加载单词.
 	 */
@@ -130,7 +105,11 @@ public class FileDictionaryHandler implements DictionaryHandler {
 		 * 监控词典目录.这里只会执行一次.
 		 */
 		startLoadChangedThread();
-		
+		/**
+		 * 钩子函数.
+		 */
+		Runtime.getRuntime().addShutdownHook(new HookThread());
+
 		File[] files = dictDir.listFiles();
 		if (files == null || files.length < 1) {
 			return;
@@ -197,33 +176,21 @@ public class FileDictionaryHandler implements DictionaryHandler {
 				line = lines.get(i);
 				if (line != null && !line.isEmpty()) {
 					line = line.trim();
+					String[] elements = parse(line);
 					if (dictType == DictType.normal) {
-						String[] elements = parse(line);
 						dict.add(elements[0], elements[1]);
-						elements = null;
-					} else if (dictType == DictType.stopword_file) {
-						stopwords.add(line);
-						dict.add(line, null);
-					} else if (dictType == DictType.numeral_file) {
-						numerals.add(line);
-					} else if (dictType == DictType.quantifier_file) {
-						quantifiers.add(line);
+					} else if (dictType == DictType.ambiguous) {
+						ambiguous.add(elements[0], elements[1]);
 					}
+					elements = null;
 				}
 				line = null;
 				lines.set(i, null);// 释放内存,类似于list.clear()
 			}
 		}
-		if (dictType == DictType.stopword_file) {
-			stopwordLoadComplete.compareAndSet(false, true);
-		} else if (dictType == DictType.numeral_file) {
-			numeralLoadComplete.compareAndSet(false, true);
-		} else if (dictType == DictType.quantifier_file) {
-			quantifierLoadComplete.compareAndSet(false, true);
-		}
 		lines = null;// 释放内存
 		System.gc();
-		logger.info("load dict " + fileName + " completed ! free jvm memory "+AnalysisUtil.getFreeMemoryM());
+		logger.info("load dict " + fileName + " completed ! free jvm memory " + AnalysisUtil.getFreeMemoryM());
 	}
 
 	/**
@@ -261,12 +228,8 @@ public class FileDictionaryHandler implements DictionaryHandler {
 	 */
 	private DictType getDictType(String fileName) {
 		DictType dictType = null;
-		if (fileName.equals(Constant.stopword_file_name)) {
-			dictType = DictType.stopword_file;
-		} else if (fileName.equals(Constant.numeral_file_name)) {
-			dictType = DictType.numeral_file;
-		} else if (fileName.equals(Constant.quantifier_file_name)) {
-			dictType = DictType.quantifier_file;
+		if (fileName.equals(Constant.ambiguous_file_name)) {
+			dictType = DictType.ambiguous;
 		} else {
 			dictType = DictType.normal;
 		}
@@ -437,37 +400,28 @@ public class FileDictionaryHandler implements DictionaryHandler {
 		}
 	}
 
-	@Override
-	public Set<String> getStopwords() {
-		return stopwords;
-	}
-
-	@Override
-	public Set<String> getNumerals() {
-		return numerals;
-	}
-
-	@Override
-	public List<String> getQuantifiers() {
-		return quantifiers;
+	class HookThread extends Thread {
+		@Override
+		public void run() {
+			dict.clear();
+			logger.info("hook thread,清理加载的词典");
+			System.out.println("hook thread,清理加载的词典");
+		}
 	}
 
 	enum DictType {
 		/**
-		 * 停止词
+		 * 在分词时,容易引起歧义的词.
 		 */
-		stopword_file,
-		/**
-		 * 数词
-		 */
-		numeral_file,
-		/**
-		 * 量词.
-		 */
-		quantifier_file,
+		ambiguous,
 		/**
 		 * 常规的
 		 */
 		normal;
+	}
+
+	@Override
+	public Trie getAmbiguous() {
+		return ambiguous;
 	}
 }

@@ -118,7 +118,7 @@ public class PatternCaptureGroupAndReplaceTokenFilter extends TokenFilter {
 	}
 
 	@Override
-	public boolean incrementToken() throws IOException {
+	public final boolean incrementToken() throws IOException {
 
 		if (currentMatcher != -1 && nextCapture()) {
 			assert state != null;
@@ -141,7 +141,7 @@ public class PatternCaptureGroupAndReplaceTokenFilter extends TokenFilter {
 		if (returnReplaced && everMatch.get() && spare.length() > 0) {// 返回替换后的内容
 			clearAttributes();
 			charTermAttr.copyBuffer(spare.chars(), 0, spare.length());
-			typeAttr.setType(Constant.NOT_A_WORD);
+			typeAttr.setType(Constant.fixed_token_type_not_a_word);
 			spare.clear();
 			everMatch.set(false);
 			return true;
@@ -151,7 +151,7 @@ public class PatternCaptureGroupAndReplaceTokenFilter extends TokenFilter {
 			return false;
 		}else {
 			String type=typeAttr.type();
-			if(type==null || !type.equals(Constant.NOT_A_WORD)) {//是单词,不进行正则表达式匹配
+			if(type==null || !type.equals(Constant.fixed_token_type_not_a_word)) {//是单词,不进行正则表达式匹配
 				currentMatcher=-1;
 				everMatch.set(false);
 				return true;

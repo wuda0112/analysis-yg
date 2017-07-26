@@ -29,7 +29,7 @@ public class YgTokenizer extends Tokenizer {
 	/**
 	 * 是否枚举所有的单词.
 	 */
-	private boolean enumerateAll = true;
+	private boolean enumerateAll = false;
 
 	/**
 	 * 文本处理器.
@@ -51,7 +51,7 @@ public class YgTokenizer extends Tokenizer {
 	}
 
 	@Override
-	public boolean incrementToken() throws IOException {
+	public final boolean incrementToken() throws IOException {
 		if (textHandler.incrementToken()) {// 文本处理器表示有token返回
 			clearAttributes();
 			charTermAttr.append(textHandlerSharedAttribute.getTokenString());

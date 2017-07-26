@@ -11,14 +11,14 @@ public class YgSegmenterTest {
 	public static void main(String[] args) {
 		long startTime = System.currentTimeMillis();
 		FileDictionaryHandler handler = new FileDictionaryHandler();
-		handler.setDirectory("e:/dict");
+		handler.setDirectory("e:/test_dict");
 		handler.setIsAsynLoadDict(false);
 		handler.loadAll(); // 从词典目录加载词典,同步加载词典
 		long end = System.currentTimeMillis();
 		System.out.println("\n===============加载词典完成,用时:" + (end - startTime) + "毫秒================================\n");
 		YgSegmenter seg = new YgSegmenter();
 		seg.setDictionary(handler.getDictionary());
-		String text = "百岁山矿泉水饮用水";// 根据你自己的词典的内容测试分词清单
+		String text = "百岁山,矿泉水.饮用水";// 根据你自己的词典的内容测试分词清单
 		TokenGraph graph = seg.getTokenGraph(text.toCharArray());
 		try {
 			graph.toDot("e:/1.dot");

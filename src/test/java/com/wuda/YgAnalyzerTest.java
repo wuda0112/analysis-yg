@@ -3,6 +3,7 @@ package com.wuda;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
@@ -10,6 +11,8 @@ import org.apache.lucene.analysis.YgAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
+import org.apache.lucene.classification.ClassificationResult;
+import org.apache.lucene.classification.SimpleNaiveBayesClassifier;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.simpletext.SimpleTextCodec;
 import org.apache.lucene.document.Document;
@@ -19,6 +22,9 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.LeafReader;
+import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.SlowCompositeReaderWrapper;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanQuery;
@@ -32,6 +38,7 @@ import org.apache.lucene.search.similarities.ClassicSimilarity;
 import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.NIOFSDirectory;
+import org.apache.lucene.util.BytesRef;
 
 import com.wuda.analysis.FileDictionaryHandler;
 
@@ -52,10 +59,18 @@ public class YgAnalyzerTest {
 		config.setUseCompoundFile(false);
 		IndexWriter iwriter = new IndexWriter(directory, config);
 
-		for (int i = 0; i < 1; i++) {
+		for (int i = 0; i < 10; i++) {
 			Document doc = new Document();
 
-			String title = "doc " + i + " java工程师  This is the text to be indexed for title field"; // 根据词典,自己重新设置内容,方便测试
+			String text = "java";
+
+			if (i % 2 == 0) {
+				text = "java";
+			} else {
+				text = "php";
+			}
+
+			String title = "doc " + i + "	" + text + " 工程师   title field"; // 根据词典,自己重新设置内容,方便测试
 			FieldType titleType = new FieldType();
 			titleType.storeTermVectors();
 			titleType.setStored(true);
@@ -63,8 +78,15 @@ public class YgAnalyzerTest {
 			titleType.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS);
 			Field titleField = new Field("title", title, titleType);
 			doc.add(titleField);
-
-			String content = "doc " + i + " java工程师  This is the text to be indexed for content field";// 根据词典,自己重新设置内容,方便测试
+			
+			FieldType tagType = new FieldType();
+			tagType.setTokenized(false);
+			tagType.setStored(true);
+			tagType.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS);
+			Field tag = new Field("tag", text, tagType);
+			doc.add(tag);
+			
+			String content = "doc " + "	" + text + " 工程师   content field";// 根据词典,自己重新设置内容,方便测试
 			FieldType contentType = new FieldType();
 			contentType.storeTermVectors();
 			contentType.setStored(true);
@@ -102,6 +124,32 @@ public class YgAnalyzerTest {
 		}
 	}
 
+	public void testClassifier(YgAnalyzer analyzer) throws IOException {
+		SimpleNaiveBayesClassifier naiveBayes = new SimpleNaiveBayesClassifier();
+		Path path = Paths.get("e:/lucene2");
+		Directory directory = NIOFSDirectory.open(path);
+		final DirectoryReader ireader = DirectoryReader.open(directory);
+		List<LeafReaderContext> leaves = ireader.leaves();
+		for (LeafReaderContext context : leaves) {
+			try {
+				naiveBayes.train(context.reader(), "product_name", "shop_name", analyzer);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		try {
+			List<ClassificationResult<BytesRef>> results = naiveBayes.getClasses("小米6手机",3);
+			for (ClassificationResult<BytesRef> result : results) {
+				String s=new String(result.getAssignedClass().utf8ToString());
+				System.out.println(s+"\t"+result.getScore());
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
 	public void showToken(YgAnalyzer analyzer, String input) {
 		TokenStream stream = analyzer.tokenStream(null, input);
 		CharTermAttribute charTermAttr = stream.addAttribute(CharTermAttribute.class);
@@ -128,10 +176,13 @@ public class YgAnalyzerTest {
 			handler.setDirectory("e:/dict");
 			handler.setIsAsynLoadDict(false);
 			handler.loadAll(); // 从词典目录加载词典,同步加载词典
+			System.out.println("-------------加载词典完成----------------------");
 			// Analyzer analyzer=new StandardAnalyzer();
-			// test.index(analyzer);
+//			 test.index(analyzer);
 			// test.search();
-			test.showToken(analyzer, "矿泉水500ml");
+			test.testClassifier(analyzer);
+			System.out.println("分类完成");
+//			test.showToken(analyzer, "yg矿泉水500ml");
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

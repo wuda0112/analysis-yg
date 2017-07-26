@@ -2,7 +2,6 @@ package com.wuda.analysis;
 
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.wuda.Constant;
 import com.wuda.utils.tree.BasicTree;
 import com.wuda.utils.tree.BasicTree.Node;
 
@@ -22,7 +21,7 @@ public class Trie {
 	/**
 	 * 节点缓存.
 	 */
-	private ConcurrentHashMap<String, Node> caches_shard_one = new ConcurrentHashMap<>(Constant.initialCapacity);
+	private ConcurrentHashMap<String, Node> caches_shard_one = new ConcurrentHashMap<>();
 
 	/**
 	 * 添加一个token.
@@ -39,7 +38,7 @@ public class Trie {
 			throw new IllegalArgumentException("token 不能是空字符");
 		}
 		char[] array = token.toCharArray();
-		token=null;
+		token = null;
 		Node parent = tree.getRoot();
 		Node child = null;
 		for (char c : array) {
@@ -97,7 +96,7 @@ public class Trie {
 		 */
 		return caches_shard_one.get(cacheKey);
 	}
-	
+
 	/**
 	 * 获取根节点.
 	 * 
@@ -114,5 +113,13 @@ public class Trie {
 	 */
 	int getCacheSize() {
 		return caches_shard_one.size();
+	}
+
+	/**
+	 * 清理.
+	 */
+	void clear() {
+		caches_shard_one.clear();
+		caches_shard_one = null;
 	}
 }
