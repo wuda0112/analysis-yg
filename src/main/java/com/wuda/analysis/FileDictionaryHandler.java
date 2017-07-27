@@ -1,6 +1,7 @@
 package com.wuda.analysis;
 
 import java.io.File;
+import java.io.FileFilter;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
@@ -9,6 +10,9 @@ import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -110,8 +114,20 @@ public class FileDictionaryHandler implements DictionaryHandler {
 		 */
 		Runtime.getRuntime().addShutdownHook(new HookThread());
 
-		File[] files = dictDir.listFiles();
-		if (files == null || files.length < 1) {
+		LinkedList<File> files = new LinkedList<>();
+		listAllDict(dictDir, files, new DictFileFilter());// 查找所有的词典文件
+		Collections.sort(files, new Comparator<File>() {// 按文件大小排序,从小到大升序
+			@Override
+			public int compare(File file1, File file2) {
+				if (file1.length() > file2.length()) {
+					return 1;
+				} else if (file1.length() < file2.length()) {
+					return -1;
+				}
+				return 0;
+			}
+		});
+		if (files == null || files.isEmpty()) {
 			return;
 		}
 		/**
@@ -423,5 +439,50 @@ public class FileDictionaryHandler implements DictionaryHandler {
 	@Override
 	public Trie getAmbiguous() {
 		return ambiguous;
+	}
+
+	/**
+	 * 递归查找所有的词典文件.
+	 * 
+	 * @param file
+	 *            对于初次调用,则file表示词典所在的目录
+	 * @param files
+	 *            目录及子目录中所有的词典文件都添加到此实例中
+	 * @param fileter
+	 *            fileter
+	 */
+	private void listAllDict(File file, LinkedList<File> files, DictFileFilter fileter) {
+		if (file == null) { // 递归基
+			return;
+		} else if (file.isFile()) {
+			files.add(file);
+			return;
+		}
+		File[] children = file.listFiles(fileter);
+		for (File child : children) {
+			listAllDict(child, files, fileter); // 递归调用
+		}
+	}
+
+	/**
+	 * 词典文件过滤类.
+	 * 
+	 * @author wd
+	 *
+	 */
+	class DictFileFilter implements FileFilter {
+
+		@Override
+		public boolean accept(File pathname) {
+			if (pathname.isDirectory()) {
+				return true;
+			}
+			String filename = pathname.getName();
+			if (filename.endsWith(".dic") || filename.endsWith(".dict")) {
+				return true;
+			}
+			return false;
+		}
+
 	}
 }
