@@ -180,10 +180,6 @@ public class YgAnalyzer extends Analyzer {
 		try {
 			if (stopFilterFactory == null && stopFilterFactoryCreated.get() == false) {
 				StringBuilder builder = new StringBuilder(Constant.stopword_file_name);
-				if (Constant.ik_stopword_file_name != null && !Constant.ik_stopword_file_name.isEmpty()) {
-					builder.append(",");
-					builder.append(Constant.ik_stopword_file_name);
-				}
 				stopFilterFactory = getStopFilterFactory(builder.toString());
 				stopFilterFactoryCreated.compareAndSet(false, true);
 			}

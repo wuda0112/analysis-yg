@@ -33,12 +33,7 @@ public class Constant {
 	/**
 	 * 停止词文件的名称,不需要路径,只需要名称.
 	 */
-	public final static String stopword_file_name = "yg_stopwords.dict";
-	/**
-	 * 为了兼容ik的停止词.
-	 */
-	public final static String ik_stopword_file_name = "stopword.dic";
-
+	public final static String stopword_file_name = "stopwords.dict";
 	/**
 	 * 分词时容易引起歧义的词,不需要路径,只需要名称.
 	 */
